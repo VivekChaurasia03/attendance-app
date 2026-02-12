@@ -1,0 +1,395 @@
+.container {
+  width: 100%;
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.container.dash {
+  max-width: 850px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+h1 {
+  font-size: 1.75rem;
+  margin-bottom: 0.25rem;
+  color: #e21833;
+}
+
+h2 {
+  font-size: 1.3rem;
+  margin-bottom: 0.25rem;
+  color: #1a1a2e;
+}
+
+.subtitle {
+  color: #666;
+  margin-bottom: 1.5rem;
+  font-size: 0.85rem;
+}
+
+/* Form styles */
+.field {
+  margin-bottom: 1rem;
+}
+
+.field label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+  font-size: 0.9rem;
+}
+
+.field input,
+.field select {
+  width: 100%;
+  padding: 0.65rem 0.75rem;
+  border: 1.5px solid #d0d5dd;
+  border-radius: 8px;
+  font-size: 1rem;
+  background: #fff;
+  transition: border-color 0.2s;
+}
+
+.field input:focus,
+.field select:focus {
+  outline: none;
+  border-color: #e21833;
+  box-shadow: 0 0 0 3px rgba(226, 24, 51, 0.1);
+}
+
+button[type="submit"] {
+  width: 100%;
+  padding: 0.75rem;
+  margin-top: 0.5rem;
+  background: #e21833;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+button[type="submit"]:hover {
+  background: #c41230;
+}
+
+button[type="submit"]:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+/* Messages */
+.message {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+.message.success {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.message.error {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+/* Chart */
+.chart-wrapper {
+  margin-top: 1rem;
+}
+
+.chart-hint {
+  text-align: center;
+  color: #999;
+  font-size: 0.8rem;
+  margin-top: 0.75rem;
+}
+
+.no-data {
+  text-align: center;
+  color: #666;
+  padding: 2rem 0;
+}
+
+/* Modal overlay */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+  padding: 1rem;
+}
+
+.modal {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1.5rem;
+  width: 100%;
+  max-width: 550px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+}
+
+.modal.modal-wide {
+  max-width: 750px;
+}
+
+.modal-scroll {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.drill-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.close-btn {
+  background: none;
+  border: 1px solid #d0d5dd;
+  border-radius: 6px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  color: #374151;
+}
+
+.close-btn:hover {
+  background: #f3f4f6;
+}
+
+.drill-stats {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.present-count {
+  background: #ecfdf5;
+  color: #065f46;
+  padding: 0.35rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.absent-count {
+  background: #fef2f2;
+  color: #991b1b;
+  padding: 0.35rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.drill-section-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin: 1rem 0 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.absent-title {
+  color: #991b1b;
+}
+
+.present-title {
+  color: #065f46;
+}
+
+.student-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.student-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.45rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.absent-row {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+}
+
+.present-row {
+  background: #f9fafb;
+}
+
+.student-name {
+  font-weight: 500;
+}
+
+.student-uid {
+  color: #6b7280;
+  font-size: 0.8rem;
+  font-family: monospace;
+  min-width: 90px;
+}
+
+.uid-cell {
+  color: #6b7280;
+  font-family: monospace;
+  font-size: 0.85rem;
+}
+
+.student-email {
+  color: #457b9d;
+  font-size: 0.8rem;
+  text-decoration: none;
+}
+
+.student-email:hover {
+  text-decoration: underline;
+}
+
+/* Section filters */
+.section-filters {
+  display: flex;
+  gap: 0.75rem;
+  margin: 1rem 0 1.5rem;
+}
+
+.section-filter-label {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.section-filter-label input[type="checkbox"] {
+  display: none;
+}
+
+.filter-chip {
+  padding: 0.4rem 1rem;
+  border-radius: 20px;
+  border: 2px solid;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: all 0.2s;
+  user-select: none;
+}
+
+.section-summary {
+  margin-bottom: 1.5rem;
+}
+
+.section-summary h3 {
+  font-size: 1.1rem;
+  color: #1a1a2e;
+  margin-bottom: 0.25rem;
+}
+
+.table-scroll {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.table-scroll thead th {
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 1;
+}
+
+/* Absentee summary table */
+.absence-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+}
+
+.absence-table th {
+  text-align: left;
+  padding: 0.6rem 0.75rem;
+  border-bottom: 2px solid #e5e7eb;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6b7280;
+}
+
+.absence-table td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.absence-table a {
+  color: #457b9d;
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+
+.absence-table a:hover {
+  text-decoration: underline;
+}
+
+.absence-count-cell {
+  font-weight: 700;
+  text-align: center;
+}
+
+.absence-table tr.high-absence {
+  background: #fef2f2;
+}
+
+.absence-table tr.high-absence .absence-count-cell {
+  color: #991b1b;
+}
+
+.absence-table tr.med-absence {
+  background: #fffbeb;
+}
+
+.absence-table tr.med-absence .absence-count-cell {
+  color: #92400e;
+}
+
+/* Responsive */
+@media (max-width: 500px) {
+  .card {
+    padding: 1.25rem;
+  }
+
+  .drill-stats {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .absence-table {
+    font-size: 0.8rem;
+  }
+}
