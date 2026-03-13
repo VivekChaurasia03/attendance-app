@@ -10,11 +10,11 @@ async function getDb() {
   return cachedClient.db(process.env.MONGODB_DB || "inst346_attendance");
 }
 
-// Strict time windows per section (Eastern Time, hour boundaries)
+// Strict time windows per section (Eastern Time, 30-minute windows)
 const WINDOWS = {
-  "0201": { start: 12, end: 13 },
-  "0202": { start: 13, end: 14 },
-  "0203": { start: 14, end: 15 },
+  "0201": { start: 12 * 60, end: 12 * 60 + 30 },
+  "0202": { start: 13 * 60, end: 13 * 60 + 30 },
+  "0203": { start: 14 * 60, end: 14 * 60 + 30 },
 };
 
 function getEasternTimeParts(date) {
@@ -77,15 +77,14 @@ export const handler = async (event) => {
 
     const currentMinutes = parseInt(parts.hour, 10) * 60 + parseInt(parts.minute, 10);
     const window = WINDOWS[section];
-    const startMin = window.start * 60;
-    const endMin = window.end * 60;
 
-    if (currentMinutes < startMin || currentMinutes >= endMin) {
+    if (currentMinutes < window.start || currentMinutes >= window.end) {
+      const fmt = (m) => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`;
       return {
         statusCode: 400,
         headers,
         body: JSON.stringify({
-          error: `Outside attendance window for section ${section} (${window.start}:00–${window.end}:00 ET)`,
+          error: `Outside attendance window for section ${section} (${fmt(window.start)}–${fmt(window.end)} ET)`,
         }),
       };
     }
