@@ -6,6 +6,12 @@
 [functions]
   node_bundler = "esbuild"
 
+[dev]
+  command = "vite"
+  port = 8888
+  autoLaunch = false
+
+
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"

@@ -100,9 +100,27 @@ export const handler = async (event) => {
     }
   }
 
+  // Fetch makeups and group by uid → object with makeup_date as key and count as value
+  const makeupRecords = await db
+    .collection("makeups")
+    .find({}, { projection: { _id: 0, uid: 1, makeup_date: 1, count: 1 } })
+    .toArray();
+
+  const makeupsByUid = {};
+  const makeupCountsByUid = {}; // Track total makeup count per student
+  makeupRecords.forEach((m) => {
+    if (!makeupsByUid[m.uid]) {
+      makeupsByUid[m.uid] = {};
+      makeupCountsByUid[m.uid] = 0;
+    }
+    makeupsByUid[m.uid][m.makeup_date] = m.count || 1;
+    makeupCountsByUid[m.uid] += m.count || 1;
+  });
+
   return {
     statusCode: 200,
     headers,
-    body: JSON.stringify({ dates, sections, rosterTotals, studentsBySection, details }),
+    body: JSON.stringify({ dates, sections, rosterTotals, studentsBySection, details, makeupsByUid, makeupCountsByUid }),
   };
 };
+

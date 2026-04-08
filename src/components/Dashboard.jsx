@@ -19,17 +19,159 @@ const SECTION_COLORS = {
   "0203": { bg: "#2a9d8f", hover: "#1a7a6e" },
 };
 
+function LoginForm({ onLogin }) {
+  const [user, setUser] = useState("");
+  const [pass, setPass] = useState("");
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    const creds = "Basic " + btoa(`${user}:${pass}`);
+    try {
+      const res = await fetch("/api/stats", { headers: { Authorization: creds } });
+      if (res.status === 401) { setError("Invalid username or password"); return; }
+      if (!res.ok) throw new Error("Server error");
+      const data = await res.json();
+      sessionStorage.setItem("dash_user", user);
+      sessionStorage.setItem("dash_pass", pass);
+      onLogin(data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="container">
+      <div className="card" style={{ maxWidth: 400, margin: "10vh auto" }}>
+        <h1>TA Dashboard</h1>
+        <p className="subtitle">Sign in to continue</p>
+        <form onSubmit={submit}>
+          <div className="field">
+            <label htmlFor="lu">Username</label>
+            <input id="lu" type="text" value={user} onChange={e => setUser(e.target.value)} required autoFocus />
+          </div>
+          <div className="field">
+            <label htmlFor="lp">Password</label>
+            <input id="lp" type="password" value={pass} onChange={e => setPass(e.target.value)} required />
+          </div>
+          <button type="submit" disabled={loading}>{loading ? "Signing in…" : "Sign In"}</button>
+          {error && <div className="message error" style={{ marginTop: "1rem" }}>{error}</div>}
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const [stats, setStats] = useState(null);
   const [error, setError] = useState(null);
+  const [loggedIn, setLoggedIn] = useState(!!sessionStorage.getItem("dash_user"));
+  const [expandedUid, setExpandedUid] = useState(null);
   const [selected, setSelected] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
   const [visibleSections, setVisibleSections] = useState(
     () => new Set(SECTIONS)
   );
+  const [backfillModal, setBackfillModal] = useState(false);
+  const [backfillUid, setBackfillUid] = useState("");
+  const [backfillDate, setBackfillDate] = useState("");
+  const [backfillLoading, setBackfillLoading] = useState(false);
+  const [backfillMessage, setBackfillMessage] = useState(null);
+  const [makeupModal, setMakeupModal] = useState(false);
+  const [makeupUid, setMakeupUid] = useState("");
+  const [makeupDate, setMakeupDate] = useState("");
+  const [makeupCount, setMakeupCount] = useState("1");
+  const [makeupLoading, setMakeupLoading] = useState(false);
+  const [makeupMessage, setMakeupMessage] = useState(null);
   const chartRef = useRef(null);
 
+  function authHeader() {
+    const user = sessionStorage.getItem("dash_user") || "";
+    const pass = sessionStorage.getItem("dash_pass") || "";
+    return { Authorization: "Basic " + btoa(`${user}:${pass}`) };
+  }
+
+  async function handleBackfill(e) {
+    e.preventDefault();
+    setBackfillLoading(true);
+    setBackfillMessage(null);
+
+    try {
+      const res = await fetch("/api/backfill", {
+        method: "POST",
+        headers: { ...authHeader(), "Content-Type": "application/json" },
+        body: JSON.stringify({ uid: backfillUid.trim(), date: backfillDate }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setBackfillMessage({ text: `✓ Backfilled: ${data.name} (${data.section}) on ${data.date}`, type: "success" });
+        setBackfillUid("");
+        setBackfillDate("");
+        // Refresh stats
+        setTimeout(() => {
+          fetch("/api/stats", { headers: authHeader() })
+            .then((r) => r.json())
+            .then(setStats);
+          setBackfillModal(false);
+        }, 1500);
+      } else {
+        setBackfillMessage({ text: data.error || "Backfill failed", type: "error" });
+      }
+    } catch (err) {
+      setBackfillMessage({ text: err.message, type: "error" });
+    } finally {
+      setBackfillLoading(false);
+    }
+  }
+
+  async function handleMakeup(e) {
+    e.preventDefault();
+    setMakeupLoading(true);
+    setMakeupMessage(null);
+
+    try {
+      const res = await fetch("/api/makeup", {
+        method: "POST",
+        headers: { ...authHeader(), "Content-Type": "application/json" },
+        body: JSON.stringify({ uid: makeupUid.trim(), makeup_date: makeupDate, count: parseInt(makeupCount, 10) }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setMakeupMessage({ text: `✓ Makeup done: ${data.name} (${data.count} lab${data.count !== 1 ? "s" : ""}) on ${data.makeup_date}`, type: "success" });
+        setMakeupUid("");
+        setMakeupDate("");
+        setMakeupCount("1");
+        // Refresh stats
+        setTimeout(() => {
+          fetch("/api/stats", { headers: authHeader() })
+            .then((r) => r.json())
+            .then(setStats);
+          setMakeupModal(false);
+          setMakeupMessage(null);
+        }, 1500);
+      } else {
+        setMakeupMessage({ text: data.error || "Makeup scheduling failed", type: "error" });
+      }
+    } catch (err) {
+      setMakeupMessage({ text: err.message, type: "error" });
+    } finally {
+      setMakeupLoading(false);
+    }
+  }
+
+  // Always call useEffect — skip fetch if not logged in
   useEffect(() => {
-    fetch("/api/stats")
+    if (!loggedIn) return;
+    fetch("/api/stats", { headers: authHeader() })
       .then((res) => {
         if (res.status === 401) throw new Error("Unauthorized");
         if (!res.ok) throw new Error("Failed to load stats");
@@ -37,7 +179,21 @@ export default function Dashboard() {
       })
       .then(setStats)
       .catch((err) => setError(err.message));
-  }, []);
+  }, [loggedIn]);
+
+  // Show login form if not authenticated
+  if (!loggedIn) {
+    return (
+      <LoginForm
+        onLogin={(data) => {
+          setStats(data);
+          setLoggedIn(true);
+        }}
+      />
+    );
+  }
+
+
 
   const toggleSection = (sec) => {
     setVisibleSections((prev) => {
@@ -130,7 +286,41 @@ export default function Dashboard() {
   return (
     <div className="container dash">
       <div className="card">
-        <h1>TA Dashboard</h1>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+          <h1 style={{ margin: 0 }}>TA Dashboard</h1>
+          <div style={{ display: "flex", gap: "0.75rem" }}>
+            <button
+              onClick={() => setBackfillModal(true)}
+              style={{
+                background: "#6366f1",
+                color: "#fff",
+                border: "none",
+                borderRadius: "6px",
+                padding: "0.5rem 1rem",
+                fontSize: "0.9rem",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Backfill
+            </button>
+            <button
+              onClick={() => setMakeupModal(true)}
+              style={{
+                background: "#10b981",
+                color: "#fff",
+                border: "none",
+                borderRadius: "6px",
+                padding: "0.5rem 1rem",
+                fontSize: "0.9rem",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Makeup
+            </button>
+          </div>
+        </div>
 
         {stats.dates.length > 0 ? (
           <div className="chart-wrapper" style={{ height: "350px" }}>
@@ -142,6 +332,150 @@ export default function Dashboard() {
 
         <p className="chart-hint">Click on any bar to see student details</p>
       </div>
+
+      {/* Backfill modal */}
+      {backfillModal && (
+        <div className="modal-overlay" onClick={() => {
+          if (!backfillLoading) {
+            setBackfillModal(false);
+            setBackfillUid("");
+            setBackfillDate("");
+            setBackfillMessage(null);
+          }
+        }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="drill-header">
+              <h2>Backfill Attendance</h2>
+              <button
+                className="close-btn"
+                onClick={() => {
+                  setBackfillModal(false);
+                  setBackfillUid("");
+                  setBackfillDate("");
+                  setBackfillMessage(null);
+                }}
+                disabled={backfillLoading}
+              >
+                ✕
+              </button>
+            </div>
+            <form onSubmit={handleBackfill} style={{ padding: "1.5rem" }}>
+              <div className="field" style={{ marginBottom: "1rem" }}>
+                <label htmlFor="bfuid">UID</label>
+                <input
+                  id="bfuid"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={backfillUid}
+                  onChange={(e) => setBackfillUid(e.target.value)}
+                  placeholder="e.g. 119756065"
+                  required
+                  disabled={backfillLoading}
+                />
+              </div>
+              <div className="field" style={{ marginBottom: "1.5rem" }}>
+                <label htmlFor="bfdate">Date (YYYY-MM-DD)</label>
+                <input
+                  id="bfdate"
+                  type="date"
+                  value={backfillDate}
+                  onChange={(e) => setBackfillDate(e.target.value)}
+                  required
+                  disabled={backfillLoading}
+                />
+              </div>
+              <button type="submit" disabled={backfillLoading} style={{ width: "100%" }}>
+                {backfillLoading ? "Backfilling..." : "Backfill"}
+              </button>
+              {backfillMessage && (
+                <div className={`message ${backfillMessage.type}`} style={{ marginTop: "1rem" }}>
+                  {backfillMessage.text}
+                </div>
+              )}
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Makeup modal */}
+      {makeupModal && (
+        <div className="modal-overlay" onClick={() => {
+          if (!makeupLoading) {
+            setMakeupModal(false);
+            setMakeupUid("");
+            setMakeupDate("");
+            setMakeupCount("1");
+            setMakeupMessage(null);
+          }
+        }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="drill-header">
+              <h2>Lab Makeup Done</h2>
+              <button
+                className="close-btn"
+                onClick={() => {
+                  setMakeupModal(false);
+                  setMakeupUid("");
+                  setMakeupDate("");
+                  setMakeupCount("1");
+                  setMakeupMessage(null);
+                }}
+                disabled={makeupLoading}
+              >
+                ✕
+              </button>
+            </div>
+            <form onSubmit={handleMakeup} style={{ padding: "1.5rem" }}>
+              <div className="field" style={{ marginBottom: "1rem" }}>
+                <label htmlFor="muuid">UID</label>
+                <input
+                  id="muuid"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={makeupUid}
+                  onChange={(e) => setMakeupUid(e.target.value)}
+                  placeholder="e.g. 119756065"
+                  required
+                  disabled={makeupLoading}
+                />
+              </div>
+              <div className="field" style={{ marginBottom: "1rem" }}>
+                <label htmlFor="mudate">Makeup Lab Date (YYYY-MM-DD)</label>
+                <input
+                  id="mudate"
+                  type="date"
+                  value={makeupDate}
+                  onChange={(e) => setMakeupDate(e.target.value)}
+                  required
+                  disabled={makeupLoading}
+                />
+              </div>
+              <div className="field" style={{ marginBottom: "1.5rem" }}>
+                <label htmlFor="mucount">Labs Completed</label>
+                <input
+                  id="mucount"
+                  type="number"
+                  min="1"
+                  value={makeupCount}
+                  onChange={(e) => setMakeupCount(e.target.value)}
+                  required
+                  disabled={makeupLoading}
+                />
+              </div>
+              <button type="submit" disabled={makeupLoading} style={{ width: "100%" }}>
+                {makeupLoading ? "Recording..." : "Lab Makeup Done"}
+              </button>
+              {makeupMessage && (
+                <div className={`message ${makeupMessage.type}`} style={{ marginTop: "1rem" }}>
+                  {makeupMessage.text}
+                </div>
+              )}
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Drill-down modal */}
       {detail && (
@@ -206,7 +540,29 @@ export default function Dashboard() {
       {/* Section filter + absentee summaries */}
       <div className="card">
         <h2>Absentee Summary</h2>
-        <div className="section-filters">
+
+        <div style={{ marginBottom: "1rem" }}>
+          <label htmlFor="search-input" style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", fontWeight: 600, color: "#4b5563" }}>
+            Search by Name or UID
+          </label>
+          <input
+            id="search-input"
+            type="text"
+            placeholder="e.g. John or 119756065"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            style={{
+              width: "100%",
+              padding: "0.55rem 0.75rem",
+              border: "1.5px solid #d1d5db",
+              borderRadius: "6px",
+              fontSize: "0.9rem",
+              boxSizing: "border-box",
+            }}
+          />
+        </div>
+
+        <div className="section-filters" style={{ marginBottom: "1.5rem" }}>
           {SECTIONS.map((sec) => (
             <label key={sec} className="section-filter-label">
               <input
@@ -232,13 +588,19 @@ export default function Dashboard() {
           const sectionAbsentees = (stats.studentsBySection?.[sec] || []).filter(
             (s) => s.absences > 0
           );
-          if (sectionAbsentees.length === 0) {
+
+          // Apply search filter
+          const filteredAbsentees = sectionAbsentees.filter((s) => {
+            const searchLower = searchTerm.toLowerCase();
+            return s.name.toLowerCase().includes(searchLower) || s.uid.includes(searchTerm);
+          });
+          if (filteredAbsentees.length === 0) {
             return (
               <div key={sec} className="section-summary">
                 <h3 style={{ borderLeft: `4px solid ${SECTION_COLORS[sec].bg}`, paddingLeft: "0.75rem" }}>
                   Section {sec}
                 </h3>
-                <p className="subtitle">No absences recorded</p>
+                <p className="subtitle">{searchTerm ? "No matching students found" : "No absences recorded"}</p>
               </div>
             );
           }
@@ -248,7 +610,7 @@ export default function Dashboard() {
                 Section {sec}
               </h3>
               <p className="subtitle">
-                {sectionAbsentees.length} student{sectionAbsentees.length !== 1 ? "s" : ""} with
+                {filteredAbsentees.length} student{filteredAbsentees.length !== 1 ? "s" : ""} with
                 absences out of {stats.rosterTotals[sec]} enrolled
                 ({stats.dates.length} lab{stats.dates.length !== 1 ? "s" : ""} so far)
               </p>
@@ -256,34 +618,104 @@ export default function Dashboard() {
                 <table className="absence-table">
                   <thead>
                     <tr>
+                      <th style={{ width: "40px" }}></th>
                       <th>Name</th>
                       <th>UID</th>
-                      <th>Absences</th>
                       <th>Email</th>
+                      <th>Absences</th>
+                      <th>Makeups</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {sectionAbsentees.map((s) => (
-                      <tr
-                        key={s.uid}
-                        className={
-                          s.absences >= 3
-                            ? "high-absence"
-                            : s.absences >= 2
-                              ? "med-absence"
-                              : ""
-                        }
-                      >
-                        <td>{s.name}</td>
-                        <td className="uid-cell">{s.uid}</td>
-                        <td className="absence-count-cell">{s.absences}</td>
-                        <td>
-                          {s.email && (
-                            <a href={`mailto:${s.email}`}>{s.email}</a>
+                    {filteredAbsentees.map((s) => {
+                      const isOpen = expandedUid === s.uid;
+                      // Compute missed dates from stats.details
+                      const missedDates = stats.dates.filter((d) =>
+                        stats.details?.[d]?.[sec]?.absent?.some((a) => a.uid === s.uid)
+                      );
+                      // Get makeup dates for this student (deduplicated and from object)
+                      const makeupDates = Object.keys(stats.makeupsByUid?.[s.uid] || {}).sort();
+                      return (
+                        <>
+                          <tr
+                            onClick={() => setExpandedUid(isOpen ? null : s.uid)}
+                            style={{ cursor: "pointer" }}
+                            className={
+                              s.absences >= 3 ? "high-absence" :
+                              s.absences >= 2 ? "med-absence" : ""
+                            }
+                          >
+                            <td style={{ textAlign: "center", paddingLeft: "0.5rem", paddingRight: "0.5rem" }}>
+                              <span style={{ fontSize: "1.1rem", color: "#6b7280" }}>
+                                {isOpen ? "▼" : "▶"}
+                              </span>
+                            </td>
+                            <td>{s.name}</td>
+                            <td className="uid-cell">{s.uid}</td>
+                            <td>
+                              {s.email && (
+                                <a href={`mailto:${s.email}`} onClick={e => e.stopPropagation()}>
+                                  {s.email}
+                                </a>
+                              )}
+                            </td>
+                            <td className="absence-count-cell">{s.absences}</td>
+                            <td style={{ textAlign: "center", fontWeight: 600, color: "#10b981" }}>
+                              {stats.makeupCountsByUid?.[s.uid] || 0}
+                            </td>
+                          </tr>
+                          {isOpen && (
+                            <tr key={`${s.uid}-detail`}>
+                              <td colSpan={6} style={{ background: "#f9fafb", padding: "0.75rem 1rem" }}>
+                                <p style={{ margin: "0 0 0.5rem", fontSize: "0.82rem", fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                                  Missed Lab Dates
+                                </p>
+                                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginBottom: "1rem" }}>
+                                  {missedDates.map((d) => (
+                                    <span key={d} style={{
+                                      background: "#fee2e2",
+                                      color: "#991b1b",
+                                      border: "1.5px solid #fca5a5",
+                                      borderRadius: "8px",
+                                      padding: "0.25rem 0.65rem",
+                                      fontSize: "0.8rem",
+                                      fontWeight: 600,
+                                    }}>
+                                      {d}
+                                    </span>
+                                  ))}
+                                </div>
+                                {makeupDates.length > 0 && (
+                                  <>
+                                    <p style={{ margin: "0 0 0.5rem", fontSize: "0.82rem", fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                                      Makeup Lab Dates
+                                    </p>
+                                    <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+                                      {makeupDates.map((d) => {
+                                        const count = stats.makeupsByUid?.[s.uid]?.[d] || 1;
+                                        return (
+                                          <span key={d} style={{
+                                            background: "#d1fae5",
+                                            color: "#065f46",
+                                            border: "1.5px solid #6ee7b7",
+                                            borderRadius: "8px",
+                                            padding: "0.25rem 0.65rem",
+                                            fontSize: "0.8rem",
+                                            fontWeight: 600,
+                                          }}>
+                                            {d} ({count} lab{count !== 1 ? "s" : ""})
+                                          </span>
+                                        );
+                                      })}
+                                    </div>
+                                  </>
+                                )}
+                              </td>
+                            </tr>
                           )}
-                        </td>
-                      </tr>
-                    ))}
+                        </>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
